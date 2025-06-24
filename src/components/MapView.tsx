@@ -30,12 +30,17 @@ const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   const initializeMap = async () => {
-    if (!mapContainer.current) return;
+    if (!mapContainer.current || mapRef.current) return;
 
     try {
       // Dynamic import of Leaflet
       const L = await import('leaflet');
-      await import('leaflet/dist/leaflet.css');
+      
+      // Import CSS
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
 
       // Fix default markers
       delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -45,7 +50,13 @@ const MapView: React.FC<MapViewProps> = ({
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
       });
 
-      const map = L.map(mapContainer.current).setView([40.7128, -74.0060], 10);
+      // Initialize map with a default location (New York City)
+      const map = L.map(mapContainer.current, {
+        center: [40.7128, -74.0060],
+        zoom: 10,
+        zoomControl: true,
+        attributionControl: true
+      });
 
       // Add OpenStreetMap tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -54,6 +65,7 @@ const MapView: React.FC<MapViewProps> = ({
       }).addTo(map);
 
       mapRef.current = map;
+      console.log('Map initialized successfully');
 
       // Add click handler for selecting locations
       map.on('click', async (e: any) => {
@@ -135,18 +147,49 @@ const MapView: React.FC<MapViewProps> = ({
           }
         } catch (error) {
           console.error('Error getting location details:', error);
+          // Still create location even if reverse geocoding fails
+          const location: Location = {
+            id: 'current-location',
+            name: 'Current Location',
+            address: `${coordinates[1].toFixed(6)}, ${coordinates[0].toFixed(6)}`,
+            coordinates,
+          };
+          onCurrentLocationFound(location);
+          
+          if (mapRef.current) {
+            mapRef.current.setView([coordinates[1], coordinates[0]], 15);
+          }
         }
         
         setIsLoadingLocation(false);
       },
       (error) => {
         console.error('Error getting current location:', error);
+        let errorMessage = "Unable to retrieve your location.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location access denied. Please enable location permissions.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out.";
+            break;
+        }
+        
         toast({
-          title: "Error",
-          description: "Unable to retrieve your location. Please enable location services.",
+          title: "Location Error",
+          description: errorMessage,
           variant: "destructive",
         });
         setIsLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 600000
       }
     );
   };
@@ -210,7 +253,11 @@ const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div className="relative flex-1">
-      <div ref={mapContainer} className="absolute inset-0" />
+      <div 
+        ref={mapContainer} 
+        className="absolute inset-0 bg-gray-100"
+        style={{ minHeight: '400px' }}
+      />
       
       {/* Current Location Button */}
       <Button
