@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -46,36 +45,21 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
     setIsLoading(true);
     
     try {
-      // For demo purposes, we'll use mock data since we don't have a Mapbox token setup yet
-      // In real implementation, this would use Mapbox Geocoding API
-      const mockResults: SearchResult[] = [
-        {
-          id: '1',
-          name: 'Times Square',
-          address: 'Times Square, New York, NY, USA',
-          coordinates: [-73.985, 40.758],
-          type: 'landmark',
-        },
-        {
-          id: '2',
-          name: 'Central Park',
-          address: 'Central Park, New York, NY, USA',
-          coordinates: [-73.968, 40.785],
-          type: 'park',
-        },
-        {
-          id: '3',
-          name: 'Brooklyn Bridge',
-          address: 'Brooklyn Bridge, New York, NY, USA',
-          coordinates: [-73.997, 40.706],
-          type: 'landmark',
-        },
-      ].filter(result => 
-        result.name.toLowerCase().includes(query.toLowerCase()) ||
-        result.address.toLowerCase().includes(query.toLowerCase())
+      // Using Nominatim (OpenStreetMap) geocoding API - completely free
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
       );
+      const data = await response.json();
 
-      setSearchResults(mockResults);
+      const results: SearchResult[] = data.map((item: any, index: number) => ({
+        id: item.place_id?.toString() || index.toString(),
+        name: item.display_name.split(',')[0],
+        address: item.display_name,
+        coordinates: [parseFloat(item.lon), parseFloat(item.lat)] as [number, number],
+        type: item.type || 'place',
+      }));
+
+      setSearchResults(results);
     } catch (error) {
       console.error('Error searching locations:', error);
       setSearchResults([]);

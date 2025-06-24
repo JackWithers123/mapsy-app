@@ -40,14 +40,47 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
     setIsCalculating(true);
 
     try {
-      // Mock route calculation for demo
-      // In real implementation, this would use Mapbox Directions API
+      // Using OSRM (Open Source Routing Machine) for routing - free OpenStreetMap service
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${origin.coordinates[0]},${origin.coordinates[1]};${destination.coordinates[0]},${destination.coordinates[1]}?overview=full&geometries=geojson&steps=true`
+      );
+      const data = await response.json();
+
+      if (data.routes && data.routes.length > 0) {
+        const routeData = data.routes[0];
+        
+        const steps: RouteStep[] = routeData.legs[0].steps.map((step: any, index: number) => ({
+          id: `step-${index}`,
+          instruction: step.maneuver.instruction || `Step ${index + 1}`,
+          distance: step.distance,
+          duration: step.duration,
+          coordinates: step.geometry.coordinates.map((coord: number[]) => [coord[0], coord[1]] as [number, number]),
+        }));
+
+        const calculatedRoute: Route = {
+          id: 'route-1',
+          origin,
+          destination,
+          distance: routeData.distance,
+          duration: routeData.duration,
+          geometry: routeData.geometry.coordinates.map((coord: number[]) => [coord[0], coord[1]] as [number, number]),
+          steps,
+        };
+
+        onRouteCalculated(calculatedRoute);
+      } else {
+        throw new Error('No route found');
+      }
+    } catch (error) {
+      console.error('Error calculating route:', error);
+      
+      // Fallback to mock route if API fails
       const mockRoute: Route = {
         id: 'route-1',
         origin,
         destination,
-        distance: 5200, // 5.2 km
-        duration: 780, // 13 minutes
+        distance: 5200,
+        duration: 780,
         geometry: [
           origin.coordinates,
           [origin.coordinates[0] + 0.01, origin.coordinates[1] + 0.01],
@@ -57,31 +90,15 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
         steps: [
           {
             id: 'step-1',
-            instruction: 'Head north on Main Street',
-            distance: 800,
-            duration: 120,
-            coordinates: [origin.coordinates, [origin.coordinates[0], origin.coordinates[1] + 0.005]],
-          },
-          {
-            id: 'step-2',
-            instruction: 'Turn right onto Broadway',
-            distance: 1200,
-            duration: 180,
-            coordinates: [[origin.coordinates[0], origin.coordinates[1] + 0.005], [origin.coordinates[0] + 0.01, origin.coordinates[1] + 0.01]],
-          },
-          {
-            id: 'step-3',
-            instruction: 'Continue straight for 2.1 miles',
-            distance: 3200,
-            duration: 480,
-            coordinates: [[origin.coordinates[0] + 0.01, origin.coordinates[1] + 0.01], [destination.coordinates[0] - 0.01, destination.coordinates[1] - 0.01]],
+            instruction: 'Head towards destination',
+            distance: 5200,
+            duration: 780,
+            coordinates: [origin.coordinates, destination.coordinates],
           },
         ],
       };
 
       onRouteCalculated(mockRoute);
-    } catch (error) {
-      console.error('Error calculating route:', error);
     } finally {
       setIsCalculating(false);
     }
