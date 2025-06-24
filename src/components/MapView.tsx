@@ -24,6 +24,7 @@ const MapView: React.FC<MapViewProps> = ({
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   useEffect(() => {
     initializeMap();
@@ -36,11 +37,18 @@ const MapView: React.FC<MapViewProps> = ({
       // Dynamic import of Leaflet
       const L = await import('leaflet');
       
-      // Import CSS
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+      // Wait for CSS to load properly
+      await new Promise<void>((resolve) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        link.onload = () => resolve();
+        link.onerror = () => resolve(); // Continue even if CSS fails to load
+        document.head.appendChild(link);
+        
+        // Fallback timeout
+        setTimeout(resolve, 1000);
+      });
 
       // Fix default markers
       delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -50,12 +58,16 @@ const MapView: React.FC<MapViewProps> = ({
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
       });
 
+      // Small delay to ensure container is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Initialize map with a default location (New York City)
       const map = L.map(mapContainer.current, {
         center: [40.7128, -74.0060],
         zoom: 10,
         zoomControl: true,
-        attributionControl: true
+        attributionControl: true,
+        preferCanvas: false
       });
 
       // Add OpenStreetMap tiles
@@ -65,7 +77,13 @@ const MapView: React.FC<MapViewProps> = ({
       }).addTo(map);
 
       mapRef.current = map;
+      setMapLoaded(true);
       console.log('Map initialized successfully');
+
+      // Force map to refresh after a short delay
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
 
       // Add click handler for selecting locations
       map.on('click', async (e: any) => {
@@ -255,15 +273,28 @@ const MapView: React.FC<MapViewProps> = ({
     <div className="relative flex-1">
       <div 
         ref={mapContainer} 
-        className="absolute inset-0 bg-gray-100"
-        style={{ minHeight: '400px' }}
+        className="absolute inset-0 bg-gray-100 z-0"
+        style={{ 
+          minHeight: '400px',
+          width: '100%',
+          height: '100%'
+        }}
       />
+      
+      {!mapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-600" />
+            <p className="text-gray-600">Loading map...</p>
+          </div>
+        </div>
+      )}
       
       {/* Current Location Button */}
       <Button
         onClick={getCurrentLocation}
         disabled={isLoadingLocation}
-        className="absolute top-4 right-4 z-10 bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-lg"
+        className="absolute top-4 right-4 z-20 bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-lg"
         size="sm"
       >
         {isLoadingLocation ? (
