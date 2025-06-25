@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Navigation, Loader } from 'lucide-react';
 import { Location, Route } from '@/types/maps';
@@ -80,7 +79,7 @@ const MapView: React.FC<MapViewProps> = ({
       setMapLoaded(true);
       console.log('Map initialized successfully');
 
-      // Force map to refresh after a short delay
+      // Force map to refresh and resize to fill container
       setTimeout(() => {
         map.invalidateSize();
       }, 100);
@@ -270,15 +269,10 @@ const MapView: React.FC<MapViewProps> = ({
   }, [route]);
 
   return (
-    <div className="relative flex-1">
+    <div className="relative w-full h-full">
       <div 
         ref={mapContainer} 
-        className="absolute inset-0 bg-gray-100 z-0"
-        style={{ 
-          minHeight: '400px',
-          width: '100%',
-          height: '100%'
-        }}
+        className="w-full h-full bg-gray-100"
       />
       
       {!mapLoaded && (
