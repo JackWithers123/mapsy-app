@@ -35,6 +35,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   const [showDestinationResults, setShowDestinationResults] = useState(false);
   const [actualOrigin, setActualOrigin] = useState<Location | null>(null);
   const [actualDestination, setActualDestination] = useState<Location | null>(null);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
 
   useEffect(() => {
     if (origin) {
@@ -192,6 +193,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   };
 
   const handleStepClick = (step: RouteStep) => {
+    setSelectedStepId(step.id);
     if (onStepClick && step.coordinates.length > 0) {
       // Use the first coordinate of the step as the zoom target
       onStepClick(step.coordinates[0]);
@@ -347,9 +349,17 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
                 <button
                   key={step.id}
                   onClick={() => handleStepClick(step)}
-                  className="w-full flex items-start space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer text-left"
+                  className={`w-full flex items-start space-x-3 p-3 rounded-lg transition-colors cursor-pointer text-left ${
+                    selectedStepId === step.id 
+                      ? 'bg-blue-100 border-2 border-blue-300' 
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
                 >
-                  <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                    selectedStepId === step.id 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-blue-600 text-white'
+                  }`}>
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">

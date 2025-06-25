@@ -271,6 +271,42 @@ const MapView: React.FC<MapViewProps> = ({
         
         markersRef.current.push(polyline);
         
+        // Add numbered markers for each step
+        route.steps.forEach((step, index) => {
+          if (step.coordinates.length > 0) {
+            const stepCoord = step.coordinates[0];
+            
+            // Create custom numbered icon
+            const numberedIcon = L.divIcon({
+              html: `<div style="
+                background-color: #2563eb;
+                color: white;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              ">${index + 1}</div>`,
+              className: '',
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            });
+
+            const stepMarker = L.marker([stepCoord[1], stepCoord[0]], { 
+              icon: numberedIcon 
+            })
+              .addTo(mapRef.current)
+              .bindPopup(`Step ${index + 1}: ${step.instruction}`);
+            
+            markersRef.current.push(stepMarker);
+          }
+        });
+        
         // Fit map to route
         mapRef.current.fitBounds(polyline.getBounds());
       });
