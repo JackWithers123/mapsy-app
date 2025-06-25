@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Clock, Route as RouteIcon, ArrowRight } from 'lucide-react';
+import { MapPin, Navigation, Clock, Route as RouteIcon, ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Location, Route, RouteStep } from '@/types/maps';
@@ -12,6 +12,13 @@ interface DirectionsPanelProps {
   route: Route | null;
 }
 
+interface AutocompleteResult {
+  id: string;
+  name: string;
+  address: string;
+  coordinates: [number, number];
+}
+
 const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   origin,
   destination,
@@ -21,28 +28,107 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   const [originInput, setOriginInput] = useState('');
   const [destinationInput, setDestinationInput] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
+  const [originResults, setOriginResults] = useState<AutocompleteResult[]>([]);
+  const [destinationResults, setDestinationResults] = useState<AutocompleteResult[]>([]);
+  const [showOriginResults, setShowOriginResults] = useState(false);
+  const [showDestinationResults, setShowDestinationResults] = useState(false);
+  const [actualOrigin, setActualOrigin] = useState<Location | null>(null);
+  const [actualDestination, setActualDestination] = useState<Location | null>(null);
 
   useEffect(() => {
     if (origin) {
       setOriginInput(origin.address);
+      setActualOrigin(origin);
     }
   }, [origin]);
 
   useEffect(() => {
     if (destination) {
       setDestinationInput(destination.address);
+      setActualDestination(destination);
     }
   }, [destination]);
 
+  const searchLocations = async (query: string) => {
+    if (!query.trim()) return [];
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`
+      );
+      const data = await response.json();
+
+      return data.map((item: any, index: number) => ({
+        id: item.place_id?.toString() || index.toString(),
+        name: item.display_name.split(',')[0],
+        address: item.display_name,
+        coordinates: [parseFloat(item.lon), parseFloat(item.lat)] as [number, number],
+      }));
+    } catch (error) {
+      console.error('Error searching locations:', error);
+      return [];
+    }
+  };
+
+  const handleOriginInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setOriginInput(value);
+    
+    if (value.trim()) {
+      const results = await searchLocations(value);
+      setOriginResults(results);
+    } else {
+      setOriginResults([]);
+    }
+  };
+
+  const handleDestinationInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDestinationInput(value);
+    
+    if (value.trim()) {
+      const results = await searchLocations(value);
+      setDestinationResults(results);
+    } else {
+      setDestinationResults([]);
+    }
+  };
+
+  const handleOriginSelect = (result: AutocompleteResult) => {
+    const location: Location = {
+      id: result.id,
+      name: result.name,
+      address: result.address,
+      coordinates: result.coordinates,
+    };
+    setActualOrigin(location);
+    setOriginInput(result.address);
+    setShowOriginResults(false);
+    setOriginResults([]);
+  };
+
+  const handleDestinationSelect = (result: AutocompleteResult) => {
+    const location: Location = {
+      id: result.id,
+      name: result.name,
+      address: result.address,
+      coordinates: result.coordinates,
+    };
+    setActualDestination(location);
+    setDestinationInput(result.address);
+    setShowDestinationResults(false);
+    setDestinationResults([]);
+  };
+
   const calculateRoute = async () => {
-    if (!origin || !destination) return;
+    if (!actualOrigin || !actualDestination) return;
 
     setIsCalculating(true);
 
     try {
       // Using OSRM (Open Source Routing Machine) for routing - free OpenStreetMap service
       const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${origin.coordinates[0]},${origin.coordinates[1]};${destination.coordinates[0]},${destination.coordinates[1]}?overview=full&geometries=geojson&steps=true`
+        `https://router.project-osrm.org/route/v1/driving/${actualOrigin.coordinates[0]},${actualOrigin.coordinates[1]};${actualDestination.coordinates[0]},${actualDestination.coordinates[1]}?overview=full&geometries=geojson&steps=true`
       );
       const data = await response.json();
 
@@ -59,8 +145,8 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
 
         const calculatedRoute: Route = {
           id: 'route-1',
-          origin,
-          destination,
+          origin: actualOrigin,
+          destination: actualDestination,
           distance: routeData.distance,
           duration: routeData.duration,
           geometry: routeData.geometry.coordinates.map((coord: number[]) => [coord[0], coord[1]] as [number, number]),
@@ -77,15 +163,15 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
       // Fallback to mock route if API fails
       const mockRoute: Route = {
         id: 'route-1',
-        origin,
-        destination,
+        origin: actualOrigin,
+        destination: actualDestination,
         distance: 5200,
         duration: 780,
         geometry: [
-          origin.coordinates,
-          [origin.coordinates[0] + 0.01, origin.coordinates[1] + 0.01],
-          [destination.coordinates[0] - 0.01, destination.coordinates[1] - 0.01],
-          destination.coordinates,
+          actualOrigin.coordinates,
+          [actualOrigin.coordinates[0] + 0.01, actualOrigin.coordinates[1] + 0.01],
+          [actualDestination.coordinates[0] - 0.01, actualDestination.coordinates[1] - 0.01],
+          actualDestination.coordinates,
         ],
         steps: [
           {
@@ -93,7 +179,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
             instruction: 'Head towards destination',
             distance: 5200,
             duration: 780,
-            coordinates: [origin.coordinates, destination.coordinates],
+            coordinates: [actualOrigin.coordinates, actualDestination.coordinates],
           },
         ],
       };
@@ -131,9 +217,36 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
             type="text"
             placeholder="Choose starting point"
             value={originInput}
-            onChange={(e) => setOriginInput(e.target.value)}
+            onChange={handleOriginInputChange}
+            onFocus={() => setShowOriginResults(true)}
+            onBlur={() => setTimeout(() => setShowOriginResults(false), 200)}
             className="pl-9 pr-4 py-3"
           />
+          {showOriginResults && (
+            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {originResults.length > 0 ? (
+                originResults.map((result) => (
+                  <button
+                    key={result.id}
+                    onClick={() => handleOriginSelect(result)}
+                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <Search className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{result.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{result.address}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  Start typing to search for locations
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
         <div className="relative">
@@ -142,14 +255,41 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
             type="text"
             placeholder="Choose destination"
             value={destinationInput}
-            onChange={(e) => setDestinationInput(e.target.value)}
+            onChange={handleDestinationInputChange}
+            onFocus={() => setShowDestinationResults(true)}
+            onBlur={() => setTimeout(() => setShowDestinationResults(false), 200)}
             className="pl-9 pr-4 py-3"
           />
+          {showDestinationResults && (
+            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {destinationResults.length > 0 ? (
+                destinationResults.map((result) => (
+                  <button
+                    key={result.id}
+                    onClick={() => handleDestinationSelect(result)}
+                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <Search className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{result.name}</p>
+                        <p className="text-sm text-gray-500 truncate">{result.address}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  Start typing to search for locations
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <Button
           onClick={calculateRoute}
-          disabled={!origin || !destination || isCalculating}
+          disabled={!actualOrigin || !actualDestination || isCalculating}
           className="w-full bg-blue-600 hover:bg-blue-700"
         >
           {isCalculating ? (
