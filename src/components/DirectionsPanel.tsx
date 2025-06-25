@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MapPin, Navigation, Clock, Route as RouteIcon, ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ interface DirectionsPanelProps {
   destination: Location | null;
   onRouteCalculated: (route: Route) => void;
   route: Route | null;
+  onStepClick?: (coordinates: [number, number]) => void;
 }
 
 interface AutocompleteResult {
@@ -24,6 +24,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   destination,
   onRouteCalculated,
   route,
+  onStepClick,
 }) => {
   const [originInput, setOriginInput] = useState('');
   const [destinationInput, setDestinationInput] = useState('');
@@ -190,6 +191,13 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
     }
   };
 
+  const handleStepClick = (step: RouteStep) => {
+    if (onStepClick && step.coordinates.length > 0) {
+      // Use the first coordinate of the step as the zoom target
+      onStepClick(step.coordinates[0]);
+    }
+  };
+
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
       return `${meters} m`;
@@ -336,7 +344,11 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
             
             <div className="space-y-3">
               {route.steps.map((step, index) => (
-                <div key={step.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <button
+                  key={step.id}
+                  onClick={() => handleStepClick(step)}
+                  className="w-full flex items-start space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer text-left"
+                >
                   <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
                     {index + 1}
                   </div>
@@ -347,7 +359,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
                       <span>{formatDuration(step.duration)}</span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

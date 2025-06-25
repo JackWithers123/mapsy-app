@@ -10,6 +10,7 @@ interface MapViewProps {
   route: Route | null;
   onCurrentLocationFound: (location: Location) => void;
   onLocationSelect: (location: Location) => void;
+  zoomToCoordinates?: [number, number] | null;
 }
 
 const MapView: React.FC<MapViewProps> = ({
@@ -18,6 +19,7 @@ const MapView: React.FC<MapViewProps> = ({
   route,
   onCurrentLocationFound,
   onLocationSelect,
+  zoomToCoordinates,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -219,6 +221,13 @@ const MapView: React.FC<MapViewProps> = ({
     });
     markersRef.current = [];
   };
+
+  // Add effect to handle zooming to specific coordinates
+  useEffect(() => {
+    if (zoomToCoordinates && mapRef.current) {
+      mapRef.current.setView([zoomToCoordinates[1], zoomToCoordinates[0]], 18);
+    }
+  }, [zoomToCoordinates]);
 
   // Update map when selectedLocation changes
   useEffect(() => {
