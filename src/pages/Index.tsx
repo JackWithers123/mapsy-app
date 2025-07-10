@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import MapView from '@/components/MapView';
 import SearchPanel from '@/components/SearchPanel';
 import DirectionsPanel from '@/components/DirectionsPanel';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Location, Route } from '@/types/maps';
 
 const Index = () => {
@@ -40,12 +41,15 @@ const Index = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-96 bg-white shadow-lg z-10 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Mapsy</h1>
-          <button onClick={handleDirectionsToggle} className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 ${isDirectionsMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+      <div className="w-96 bg-card shadow-lg z-10 flex flex-col">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold text-card-foreground">Mapsy</h1>
+            <ThemeToggle />
+          </div>
+          <button onClick={handleDirectionsToggle} className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 ${isDirectionsMode ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
             {isDirectionsMode ? 'Exit Directions' : 'Get Directions'}
           </button>
         </div>
