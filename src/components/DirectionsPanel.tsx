@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Navigation, Clock, Route as RouteIcon, ArrowRight, Search } from 'lucide-react';
+import { MapPin, Navigation, Clock, Route as RouteIcon, ArrowRight, Search, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Location, Route, RouteStep } from '@/types/maps';
 
 interface DirectionsPanelProps {
@@ -36,6 +37,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   const [actualOrigin, setActualOrigin] = useState<Location | null>(null);
   const [actualDestination, setActualDestination] = useState<Location | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (origin) {
@@ -126,6 +128,7 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
     if (!actualOrigin || !actualDestination) return;
 
     setIsCalculating(true);
+    setRouteError(null);
 
     try {
       // Using OSRM (Open Source Routing Machine) for routing - free OpenStreetMap service
@@ -133,6 +136,11 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
         `https://router.project-osrm.org/route/v1/driving/${actualOrigin.coordinates[0]},${actualOrigin.coordinates[1]};${actualDestination.coordinates[0]},${actualDestination.coordinates[1]}?overview=full&geometries=geojson&steps=true`
       );
       const data = await response.json();
+
+      if (data.code === 'NoRoute') {
+        setRouteError('No driving route available between these locations. The destinations may be in different regions or there may be no connecting roads.');
+        return;
+      }
 
       if (data.routes && data.routes.length > 0) {
         const routeData = data.routes[0];
@@ -157,36 +165,11 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
 
         onRouteCalculated(calculatedRoute);
       } else {
-        throw new Error('No route found');
+        setRouteError('Unable to calculate route. Please try different locations or check if the destinations are accessible by road.');
       }
     } catch (error) {
       console.error('Error calculating route:', error);
-      
-      // Fallback to mock route if API fails
-      const mockRoute: Route = {
-        id: 'route-1',
-        origin: actualOrigin,
-        destination: actualDestination,
-        distance: 5200,
-        duration: 780,
-        geometry: [
-          actualOrigin.coordinates,
-          [actualOrigin.coordinates[0] + 0.01, actualOrigin.coordinates[1] + 0.01],
-          [actualDestination.coordinates[0] - 0.01, actualDestination.coordinates[1] - 0.01],
-          actualDestination.coordinates,
-        ],
-        steps: [
-          {
-            id: 'step-1',
-            instruction: 'Head towards destination',
-            distance: 5200,
-            duration: 780,
-            coordinates: [actualOrigin.coordinates, actualDestination.coordinates],
-          },
-        ],
-      };
-
-      onRouteCalculated(mockRoute);
+      setRouteError('Route calculation failed. Please check your internet connection and try again.');
     } finally {
       setIsCalculating(false);
     }
@@ -195,7 +178,6 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
   const handleStepClick = (step: RouteStep) => {
     setSelectedStepId(step.id);
     if (onStepClick && step.coordinates.length > 0) {
-      // Use the first coordinate of the step as the zoom target
       onStepClick(step.coordinates[0]);
     }
   };
@@ -315,6 +297,18 @@ const DirectionsPanel: React.FC<DirectionsPanelProps> = ({
           )}
         </Button>
       </div>
+
+      {/* Route Error Alert */}
+      {routeError && (
+        <div className="mb-6">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              {routeError}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       {/* Route Summary */}
       {route && (
