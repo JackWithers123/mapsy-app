@@ -161,7 +161,7 @@ const SearchPanel: React.FC<SearchPanelProps> = ({
                 <div className="flex items-start space-x-3">
                   <MapPin className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{location.name}</p>
+                    <p className="font-medium text-card-foreground truncate">{location.name}</p>
                     <p className="text-sm text-gray-500 truncate">{location.address}</p>
                   </div>
                 </div>
